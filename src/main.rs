@@ -2,7 +2,7 @@
 use poem::{
     handler, middleware::Cors, web::Json, EndpointExt, Route, Server,
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::{json, Value};
 use solana_sdk::{
     pubkey::Pubkey,
@@ -335,7 +335,7 @@ async fn main() -> Result<(), std::io::Error> {
         .at("/send/token", poem::post(transfer_tokens))
         .with(Cors::new());
 
-    println!("🚀 Starting Solana API server on http://0.0.0.0:3000");
+    println!("🚀 Starting Solana API server on http://0.0.0.0:5000");
     println!("Ready to handle requests:");
     println!("  POST /keypair           - Generate new keypair");
     println!("  POST /token/create      - Create new token");
@@ -345,7 +345,7 @@ async fn main() -> Result<(), std::io::Error> {
     println!("  POST /send/sol          - Transfer SOL");
     println!("  POST /send/token        - Transfer tokens");
 
-    Server::new(poem::listener::TcpListener::bind("0.0.0.0:3000"))
+    Server::new(poem::listener::TcpListener::bind("0.0.0.0:5000"))
         .run(server_routes)
         .await
 }
