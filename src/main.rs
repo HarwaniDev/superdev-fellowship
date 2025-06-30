@@ -16,18 +16,18 @@ use base64::{Engine as _, engine::general_purpose};
 use std::str::FromStr;
 
 // Common response format
-fn success_response(data: Value) -> poem::Result<Json<Value>> {
-    Ok(Json(json!({
+fn success_response(data: Value) -> Json<Value> {
+    Json(json!({
         "success": true,
         "data": data
-    })))
+    }))
 }
 
-fn error_response(message: &str) -> poem::Result<Json<Value>> {
-    Ok(Json(json!({
+fn error_response(message: &str) -> Json<Value> {
+    Json(json!({
         "success": false,
         "error": message
-    })))
+    }))
 }
 
 // Request structures
@@ -95,7 +95,7 @@ fn parse_secret_key(secret_string: &str) -> Result<Keypair, String> {
 
 // Endpoint handlers
 #[handler]
-async fn create_new_keypair() -> poem::Result<Json<Value>> {
+async fn create_new_keypair() -> Json<Value> {
     let new_keypair = Keypair::new();
     let public_key_b58 = bs58::encode(new_keypair.pubkey().to_bytes()).into_string();
     let secret_key_b58 = bs58::encode(new_keypair.to_bytes()).into_string();
@@ -107,7 +107,7 @@ async fn create_new_keypair() -> poem::Result<Json<Value>> {
 }
 
 #[handler]
-async fn handle_token_creation(Json(request): Json<TokenCreationRequest>) -> poem::Result<Json<Value>> {
+async fn handle_token_creation(Json(request): Json<TokenCreationRequest>) -> Json<Value> {
     let mint_authority_key = match parse_public_key(&request.mint_authority) {
         Ok(key) => key,
         Err(e) => return error_response(&e),
@@ -147,17 +147,17 @@ async fn handle_token_creation(Json(request): Json<TokenCreationRequest>) -> poe
 async fn handle_token_minting(Json(request): Json<TokenMintingRequest>) -> Json<Value> {
     let mint_key = match parse_public_key(&request.mint) {
         Ok(key) => key,
-        Err(e) => return error_response(&e).expect("Failed to create error response"),
+        Err(e) => return error_response(&e),
     };
 
     let destination_key = match parse_public_key(&request.destination) {
         Ok(key) => key,
-        Err(e) => return error_response(&e).expect("Failed to create error response"),
+        Err(e) => return error_response(&e),
     };
 
     let authority_key = match parse_public_key(&request.authority) {
         Ok(key) => key,
-        Err(e) => return error_response(&e).expect("Failed to create error response"),
+        Err(e) => return error_response(&e),
     };
 
     let token_program = spl_token::id();
@@ -183,18 +183,18 @@ async fn handle_token_minting(Json(request): Json<TokenMintingRequest>) -> Json<
         "program_id": minting_instruction.program_id.to_string(),
         "accounts": accounts,
         "instruction_data": general_purpose::STANDARD.encode(&minting_instruction.data)
-    })).expect("Failed to create success response")
+    }))
 }
 
 #[handler]
 async fn sign_user_message(Json(request): Json<MessageSigningRequest>) -> Json<Value> {
     if request.message.is_empty() || request.secret.is_empty() {
-        return error_response("Missing required fields").expect("Failed to create error response");
+        return error_response("Missing required fields");
     }
 
     let user_keypair = match parse_secret_key(&request.secret) {
         Ok(keypair) => keypair,
-        Err(e) => return error_response(&e).expect("Failed to create error response"),
+        Err(e) => return error_response(&e),
     };
 
     let message_bytes = request.message.as_bytes();
@@ -206,23 +206,23 @@ async fn sign_user_message(Json(request): Json<MessageSigningRequest>) -> Json<V
         "signature": signature_b64,
         "public_key": public_key_b58,
         "message": request.message
-    })).expect("Failed to create success response")
+    }))
 }
 
 #[handler]
 async fn verify_user_message(Json(request): Json<MessageVerificationRequest>) -> Json<Value> {
     if request.message.is_empty() || request.signature.is_empty() || request.pubkey.is_empty() {
-        return error_response("Missing required fields").expect("Failed to create error response");
+        return error_response("Missing required fields");
     }
 
     let public_key = match parse_public_key(&request.pubkey) {
         Ok(key) => key,
-        Err(_) => return error_response("Invalid public key format").expect("Failed to create error response"),
+        Err(_) => return error_response("Invalid public key format"),
     };
 
     let signature_bytes = match general_purpose::STANDARD.decode(&request.signature) {
         Ok(bytes) => bytes,
-        Err(_) => return error_response("Invalid signature format").expect("Failed to create error response"),
+        Err(_) => return error_response("Invalid signature format"),
     };
 
     let is_signature_valid = if signature_bytes.len() == 64 {
@@ -238,27 +238,27 @@ async fn verify_user_message(Json(request): Json<MessageVerificationRequest>) ->
         "valid": is_signature_valid,
         "message": request.message,
         "pubkey": request.pubkey
-    })).expect("Failed to create success response")
+    }))
 }
 
 #[handler]
 async fn transfer_sol(Json(request): Json<SolTransferRequest>) -> Json<Value> {
     if request.lamports == 0 {
-        return error_response("Amount must be greater than 0").expect("Failed to create error response");
+        return error_response("Amount must be greater than 0");
     }
 
     let sender_key = match parse_public_key(&request.from) {
         Ok(key) => key,
-        Err(e) => return error_response(&e).expect("Failed to create error response"),
+        Err(e) => return error_response(&e),
     };
 
     let recipient_key = match parse_public_key(&request.to) {
         Ok(key) => key,
-        Err(e) => return error_response(&e).expect("Failed to create error response"),
+        Err(e) => return error_response(&e),
     };
 
     if sender_key == recipient_key {
-        return error_response("Sender and recipient cannot be the same").expect("Failed to create error response");
+        return error_response("Sender and recipient cannot be the same");
     }
 
     let transfer_instruction = system_instruction::transfer(&sender_key, &recipient_key, request.lamports);
@@ -271,28 +271,28 @@ async fn transfer_sol(Json(request): Json<SolTransferRequest>) -> Json<Value> {
         "program_id": transfer_instruction.program_id.to_string(),
         "accounts": account_addresses,
         "instruction_data": general_purpose::STANDARD.encode(&transfer_instruction.data)
-    })).expect("Failed to create success response")
+    }))
 }
 
 #[handler]
 async fn transfer_tokens(Json(request): Json<TokenTransferRequest>) -> Json<Value> {
     if request.amount == 0 {
-        return error_response("Amount must be greater than 0").expect("Failed to create error response");
+        return error_response("Amount must be greater than 0");
     }
 
     let destination_key = match parse_public_key(&request.destination) {
         Ok(key) => key,
-        Err(e) => return error_response(&e).expect("Failed to create error response"),
+        Err(e) => return error_response(&e),
     };
 
     let mint_key = match parse_public_key(&request.mint) {
         Ok(key) => key,
-        Err(e) => return error_response(&e).expect("Failed to create error response"),
+        Err(e) => return error_response(&e),
     };
 
     let owner_key = match parse_public_key(&request.owner) {
         Ok(key) => key,
-        Err(e) => return error_response(&e).expect("Failed to create error response"),
+        Err(e) => return error_response(&e),
     };
 
     let source_token_account = get_associated_token_address(&owner_key, &mint_key);
@@ -320,7 +320,7 @@ async fn transfer_tokens(Json(request): Json<TokenTransferRequest>) -> Json<Valu
         "program_id": transfer_instruction.program_id.to_string(),
         "accounts": account_info,
         "instruction_data": general_purpose::STANDARD.encode(&transfer_instruction.data)
-    })).expect("Failed to create success response")
+    }))
 }
 
 #[tokio::main]
