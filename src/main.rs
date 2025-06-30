@@ -16,18 +16,18 @@ use base64::{Engine as _, engine::general_purpose};
 use std::str::FromStr;
 
 // Common response format
-fn success_response(data: Value) -> Json<Value> {
-    Json(json!({
+fn success_response(data: Value) -> poem::Result<Json<Value>> {
+    Ok(Json(json!({
         "success": true,
         "data": data
-    }))
+    })))
 }
 
-fn error_response(message: &str) -> Json<Value> {
-    Json(json!({
+fn error_response(message: &str) -> poem::Result<Json<Value>> {
+    Ok(Json(json!({
         "success": false,
         "error": message
-    }))
+    })))
 }
 
 // Request structures
@@ -95,7 +95,7 @@ fn parse_secret_key(secret_string: &str) -> Result<Keypair, String> {
 
 // Endpoint handlers
 #[handler]
-async fn create_new_keypair() -> Json<Value> {
+async fn create_new_keypair() -> poem::Result<Json<Value>> {
     let new_keypair = Keypair::new();
     let public_key_b58 = bs58::encode(new_keypair.pubkey().to_bytes()).into_string();
     let secret_key_b58 = bs58::encode(new_keypair.to_bytes()).into_string();
@@ -107,7 +107,7 @@ async fn create_new_keypair() -> Json<Value> {
 }
 
 #[handler]
-async fn handle_token_creation(Json(request): Json<TokenCreationRequest>) -> Json<Value> {
+async fn handle_token_creation(Json(request): Json<TokenCreationRequest>) -> poem::Result<Json<Value>> {
     let mint_authority_key = match parse_public_key(&request.mint_authority) {
         Ok(key) => key,
         Err(e) => return error_response(&e),
